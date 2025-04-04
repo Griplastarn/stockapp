@@ -4,6 +4,7 @@ from datetime import datetime
 from openpyxl import Workbook, load_workbook
 from fpdf import FPDF
 import os
+import base64
 
 EXCEL_FIL = "vedlogg.xlsx"
 PDF_FIL = "vedrapport.pdf"
@@ -22,7 +23,6 @@ def spara_till_excel(längd, diameter, volym, fast, travad):
     datum = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ws.append([datum, längd, diameter, round(volym, 3), round(fast, 3), round(travad, 3)])
 
-    # Summa
     total_fub = sum(row[4] for row in ws.iter_rows(min_row=2, values_only=True) if isinstance(row[4], (int, float)))
     total_s = sum(row[5] for row in ws.iter_rows(min_row=2, values_only=True) if isinstance(row[5], (int, float)))
     ws.append(["SUMMA", "", "", "", round(total_fub, 3), round(total_s, 3)])
@@ -55,8 +55,15 @@ def skapa_pdf():
 
         pdf.output(PDF_FIL)
         return True
-    except Exception as e:
+    except Exception:
         return False
+
+def skapa_download_länk(filnamn, knapptext):
+    with open(filnamn, "rb") as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{filnamn}">{knapptext}</a>'
+    return href
 
 # Streamlit-gränssnitt
 st.set_page_config(page_title="Vedräknare", page_icon="🪵")
@@ -66,7 +73,7 @@ längd = st.number_input("Längd på stock (meter)", min_value=0.1)
 diameter = st.number_input("Diameter (cm)", min_value=1.0)
 
 if st.button("Räkna och spara"):
-    radie = diameter / 200  # cm till m och sen radie
+    radie = diameter / 200
     volym = math.pi * radie**2 * längd
     fast = volym
     travad = volym * 1.6
@@ -79,3 +86,9 @@ if st.button("Exportera till PDF"):
         st.success("📄 PDF skapad: vedrapport.pdf")
     else:
         st.error("❌ Fel vid PDF-export")
+
+# Ladda ner-filer
+if os.path.exists(EXCEL_FIL):
+    st.markdown(skapa_download_länk(EXCEL_FIL, "📥 Ladda ner Excel-fil"), unsafe_allow_html=True)
+if os.path.exists(PDF_FIL):
+    st.markdown(skapa_download_länk(PDF_FIL, "📥 Ladda ner PDF-rapport"), unsafe_allow_html=True)
