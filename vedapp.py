@@ -43,15 +43,18 @@ def skapa_pdf():
         pdf.set_font("Helvetica", "B", 12)
         pdf.ln(10)
         headers = ["Datum", "Längd", "Diameter", "m³/stock", "m³fub", "m³s"]
-        for h in headers:
-            pdf.cell(32, 8, h, border=1)
+        col_widths = [50, 25, 25, 30, 30, 30]  # justerade bredder
+
+        for i, h in enumerate(headers):
+            pdf.cell(col_widths[i], 8, h, border=1)
         pdf.ln()
 
         pdf.set_font("Helvetica", "", 11)
         for row in ws.iter_rows(min_row=2, values_only=True):
             pdf.set_font("Helvetica", "B", 11) if row[0] == "SUMMA" else pdf.set_font("Helvetica", "", 11)
-            for cell in row[:6]:
-                pdf.cell(32, 8, str(cell) if cell else "", border=1)
+            for i, cell in enumerate(row[:6]):
+                text = str(cell) if cell else ""
+                pdf.cell(col_widths[i], 8, text, border=1)
             pdf.ln()
 
         pdf.output(PDF_FIL)
@@ -81,23 +84,28 @@ st.title("🪓 Vedräknare")
 if st.button("🧹 Rensa allt"):
     rensa_data()
 
-# Formulär för ny stock
+# Formulär
 with st.form("vedform", clear_on_submit=True):
-    längd = st.number_input("Längd på stock (meter)", min_value=0.0, step=0.01, format="%.2f", key="längd")
-    diameter = st.number_input("Diameter (cm)", min_value=0.0, step=0.1, format="%.1f", key="diameter")
-
+    längd_input = st.text_input("Längd på stock (meter)", value="", placeholder="Ex: 3.20")
+    diameter_input = st.text_input("Diameter (cm)", value="", placeholder="Ex: 25.5")
     submitted = st.form_submit_button("Räkna och spara")
 
-    if submitted and längd > 0 and diameter > 0:
-        radie = diameter / 200
-        volym = math.pi * radie**2 * längd
-        fast = volym
-        travad = volym * 1.6
+    if submitted:
+        try:
+            längd = float(längd_input.replace(",", "."))
+            diameter = float(diameter_input.replace(",", "."))
+            if längd > 0 and diameter > 0:
+                radie = diameter / 200
+                volym = math.pi * radie**2 * längd
+                fast = volym
+                travad = volym * 1.6
 
-        spara_till_excel(längd, diameter, volym, fast, travad)
-        st.success(f"✅ Volym: {volym:.3f} m³\nFast mått: {fast:.3f} m³fub\nTravad: {travad:.3f} m³s\nLoggat i vedlogg.xlsx")
-    elif submitted:
-        st.warning("❗ Fyll i båda fälten med giltiga värden.")
+                spara_till_excel(längd, diameter, volym, fast, travad)
+                st.success(f"✅ Volym: {volym:.3f} m³\nFast mått: {fast:.3f} m³fub\nTravad: {travad:.3f} m³s\nLoggat i vedlogg.xlsx")
+            else:
+                st.warning("❗ Värdena måste vara större än 0.")
+        except ValueError:
+            st.error("❌ Ange giltiga tal (punkt eller komma går bra).")
 
 # Export till PDF
 if st.button("📄 Exportera till PDF"):
@@ -112,7 +120,7 @@ if os.path.exists(EXCEL_FIL):
 if os.path.exists(PDF_FIL):
     st.markdown(skapa_download_länk(PDF_FIL, "📥 Ladda ner PDF-rapport"), unsafe_allow_html=True)
 
-# Visa stocktabell
+# Visa datatabell
 if os.path.exists(EXCEL_FIL):
     try:
         df = pd.read_excel(EXCEL_FIL)
