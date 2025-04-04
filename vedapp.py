@@ -66,17 +66,25 @@ def skapa_download_länk(filnamn, knapptext):
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="{filnamn}">{knapptext}</a>'
     return href
 
+def rensa_data():
+    if os.path.exists(EXCEL_FIL):
+        os.remove(EXCEL_FIL)
+    if os.path.exists(PDF_FIL):
+        os.remove(PDF_FIL)
+    st.success("All data har rensats!")
+
 # --- Streamlit börjar här ---
 st.set_page_config(page_title="Vedräknare", page_icon="🪵")
 st.title("🪓 Vedräknare")
 
-# Session state för att nollställa inmatning
-if "ny_post" not in st.session_state:
-    st.session_state.ny_post = False
+# Rensa-knapp
+if st.button("🧹 Rensa allt"):
+    rensa_data()
 
+# Formulär för ny stock
 with st.form("vedform", clear_on_submit=True):
-    längd = st.number_input("Längd på stock (meter)", min_value=0.0, step=0.01, format="%.2f")
-    diameter = st.number_input("Diameter (cm)", min_value=0.0, step=0.1, format="%.1f")
+    längd = st.number_input("Längd på stock (meter)", min_value=0.0, step=0.01, format="%.2f", key="längd")
+    diameter = st.number_input("Diameter (cm)", min_value=0.0, step=0.1, format="%.1f", key="diameter")
 
     submitted = st.form_submit_button("Räkna och spara")
 
@@ -88,7 +96,6 @@ with st.form("vedform", clear_on_submit=True):
 
         spara_till_excel(längd, diameter, volym, fast, travad)
         st.success(f"✅ Volym: {volym:.3f} m³\nFast mått: {fast:.3f} m³fub\nTravad: {travad:.3f} m³s\nLoggat i vedlogg.xlsx")
-        st.session_state.ny_post = True
     elif submitted:
         st.warning("❗ Fyll i båda fälten med giltiga värden.")
 
@@ -99,13 +106,13 @@ if st.button("📄 Exportera till PDF"):
     else:
         st.error("❌ Fel vid PDF-export")
 
-# Visa nedladdningsknappar
+# Nedladdningslänkar
 if os.path.exists(EXCEL_FIL):
     st.markdown(skapa_download_länk(EXCEL_FIL, "📥 Ladda ner Excel-fil"), unsafe_allow_html=True)
 if os.path.exists(PDF_FIL):
     st.markdown(skapa_download_länk(PDF_FIL, "📥 Ladda ner PDF-rapport"), unsafe_allow_html=True)
 
-# Visa datatabell direkt i appen
+# Visa stocktabell
 if os.path.exists(EXCEL_FIL):
     try:
         df = pd.read_excel(EXCEL_FIL)
