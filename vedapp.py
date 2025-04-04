@@ -21,7 +21,7 @@ def spara_till_excel(längd, diameter, volym, fast, travad):
         ws = wb.active
         ws.append(["Datum", "Längd (m)", "Diameter (cm)", "m³/stock", "m³fub", "m³s"])
 
-    datum = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    datum = datetime.now().strftime("%Y-%m-%d")
     ws.append([datum, längd, diameter, round(volym, 3), round(fast, 3), round(travad, 3)])
 
     total_fub = sum(row[4] for row in ws.iter_rows(min_row=2, values_only=True) if isinstance(row[4], (int, float)))
