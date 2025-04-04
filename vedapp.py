@@ -5,6 +5,7 @@ from openpyxl import Workbook, load_workbook
 from fpdf import FPDF
 import os
 import base64
+import pandas as pd
 
 EXCEL_FIL = "vedlogg.xlsx"
 PDF_FIL = "vedrapport.pdf"
@@ -65,30 +66,50 @@ def skapa_download_länk(filnamn, knapptext):
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="{filnamn}">{knapptext}</a>'
     return href
 
-# Streamlit-gränssnitt
+# --- Streamlit börjar här ---
 st.set_page_config(page_title="Vedräknare", page_icon="🪵")
 st.title("🪓 Vedräknare")
 
-längd = st.number_input("Längd på stock (meter)", min_value=0.1)
-diameter = st.number_input("Diameter (cm)", min_value=1.0)
+# Session state för att nollställa inmatning
+if "ny_post" not in st.session_state:
+    st.session_state.ny_post = False
 
-if st.button("Räkna och spara"):
-    radie = diameter / 200
-    volym = math.pi * radie**2 * längd
-    fast = volym
-    travad = volym * 1.6
+with st.form("vedform", clear_on_submit=True):
+    längd = st.number_input("Längd på stock (meter)", min_value=0.0, step=0.01, format="%.2f")
+    diameter = st.number_input("Diameter (cm)", min_value=0.0, step=0.1, format="%.1f")
 
-    spara_till_excel(längd, diameter, volym, fast, travad)
-    st.success(f"✅ Volym: {volym:.3f} m³\nFast mått: {fast:.3f} m³fub\nTravad: {travad:.3f} m³s\nLoggat i vedlogg.xlsx")
+    submitted = st.form_submit_button("Räkna och spara")
 
-if st.button("Exportera till PDF"):
+    if submitted and längd > 0 and diameter > 0:
+        radie = diameter / 200
+        volym = math.pi * radie**2 * längd
+        fast = volym
+        travad = volym * 1.6
+
+        spara_till_excel(längd, diameter, volym, fast, travad)
+        st.success(f"✅ Volym: {volym:.3f} m³\nFast mått: {fast:.3f} m³fub\nTravad: {travad:.3f} m³s\nLoggat i vedlogg.xlsx")
+        st.session_state.ny_post = True
+    elif submitted:
+        st.warning("❗ Fyll i båda fälten med giltiga värden.")
+
+# Export till PDF
+if st.button("📄 Exportera till PDF"):
     if skapa_pdf():
         st.success("📄 PDF skapad: vedrapport.pdf")
     else:
         st.error("❌ Fel vid PDF-export")
 
-# Ladda ner-filer
+# Visa nedladdningsknappar
 if os.path.exists(EXCEL_FIL):
     st.markdown(skapa_download_länk(EXCEL_FIL, "📥 Ladda ner Excel-fil"), unsafe_allow_html=True)
 if os.path.exists(PDF_FIL):
     st.markdown(skapa_download_länk(PDF_FIL, "📥 Ladda ner PDF-rapport"), unsafe_allow_html=True)
+
+# Visa datatabell direkt i appen
+if os.path.exists(EXCEL_FIL):
+    try:
+        df = pd.read_excel(EXCEL_FIL)
+        st.subheader("📊 Inmatade stockar")
+        st.dataframe(df, use_container_width=True)
+    except Exception as e:
+        st.warning(f"Kunde inte läsa Excel-fil: {e}")
